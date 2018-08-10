@@ -33,6 +33,8 @@ static inline NSString *logPath() {
 @property (nonatomic, strong) DDYFPSMonitor *monitor;
 /** alert级别window */
 @property (nonatomic, strong) UIWindow *alertWindow;
+/** 日志数组 */
+@property (nonatomic, strong) NSMutableArray *logArray;
 
 @end
 
@@ -53,7 +55,7 @@ static inline NSString *logPath() {
 - (UIView *)backView {
     if (!_backView) {
         _backView = [[UIView alloc] initWithFrame:CGRectMake(0, startY(), screenW()/3., viewH(NO))];
-        [_backView setBackgroundColor:[UIColor colorWithWhite:0 alpha:0.6]];
+        [_backView setBackgroundColor:[UIColor colorWithWhite:0 alpha:0.7]];
         [_backView addSubview:self.labelFPS];
         [_backView addSubview:self.labelCPU];
         [_backView addSubview:self.labelMemory];
@@ -105,9 +107,18 @@ static inline NSString *logPath() {
         [_logTextView setShowsHorizontalScrollIndicator:NO];
         [_logTextView setBounces:NO];
         [_logTextView setEditable:NO];
-        [_logTextView setFont:[UIFont systemFontOfSize:15.0]];
+        [_logTextView setFont:[UIFont systemFontOfSize:13.0]];
+        [_logTextView setTextColor:[UIColor greenColor]];
+        [_logTextView setBackgroundColor:[UIColor colorWithRed:1 green:1 blue:1 alpha:0.2]];
     }
     return _logTextView;
+}
+
+- (NSMutableArray *)logArray {
+    if (!_logArray) {
+        _logArray = [NSMutableArray arrayWithCapacity:50];
+    }
+    return _logArray;
 }
 
 - (DDYFPSMonitor *)monitor {
