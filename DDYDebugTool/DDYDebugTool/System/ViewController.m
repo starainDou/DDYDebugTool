@@ -23,7 +23,7 @@
     });
     [self.view addSubview:takeButton];
     
-    [[DDYDebugTool sharedManager] showWithType:DDYDebugToolTypeAll];
+    [[DDYDebugTool sharedManager] showInfo:YES];
 }
 
 - (void)handleClick:(UIButton *)sender {

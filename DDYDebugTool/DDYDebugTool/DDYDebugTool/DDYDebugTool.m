@@ -3,75 +3,111 @@
 #import "DDYFPSMonitor.h"
 #import <UIKit/UIKit.h>
 
-#ifndef DDYStatusBarH
-#define DDYStatusBarH [[UIApplication sharedApplication] statusBarFrame].size.height
-#endif
+#define LogFileName @"DDYDebugToolLogger.log"
 
-#ifndef DDYScreenW
-#define DDYScreenW [UIScreen mainScreen].bounds.size.width
-#endif
-
-#ifndef DDYScreenH
-#define DDYScreenH [UIScreen mainScreen].bounds.size.height
-#endif
-
-#ifndef DDYDebugToolLabelH
-#define DDYDebugToolLabelH 20
-#endif
+static inline CGFloat screenW() { return [UIScreen mainScreen].bounds.size.width; }
+static inline CGFloat screenH() { return [UIScreen mainScreen].bounds.size.height; }
+static inline CGFloat startY() { return [DDYSystemInfo deviceType]==IPhone_X ? 64 : 20; }
+static inline CGFloat endY() { return [DDYSystemInfo deviceType]==IPhone_X ? (screenH()-34) : screenH(); }
+static inline CGFloat viewH(BOOL expand) { return expand ? screenH()/2. : 20; }
+static inline NSString *logPath() {
+    NSString *documentPath = [NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) objectAtIndex:0];
+    NSString *logPath = [documentPath stringByAppendingPathComponent:LogFileName];
+    return logPath;
+}
 
 @interface DDYDebugTool ()
-
-@property (nonatomic, strong) DDYFPSMonitor *monitor;
+/** 用来控制拖动时不能点击 */
+@property (nonatomic, assign) BOOL isExpand;
+/** 可以拖动的视图 */
+@property (nonatomic, strong) UIView *backView;
+/** 显示FPS */
 @property (nonatomic, strong) UILabel *labelFPS;
+/** 显示CPU使用情况 */
 @property (nonatomic, strong) UILabel *labelCPU;
+/** 显示内存使用情况 */
 @property (nonatomic, strong) UILabel *labelMemory;
+/** 显示日志textView */
+@property (nonatomic, strong) UITextView *logTextView;
+/** FPS探测器 */
+@property (nonatomic, strong) DDYFPSMonitor *monitor;
+/** alert级别window */
 @property (nonatomic, strong) UIWindow *alertWindow;
 
 @end
 
 @implementation DDYDebugTool
 
+#pragma mark - lazy getter
 - (UIWindow *)alertWindow {
     if (!_alertWindow) {
-        _alertWindow = [[UIWindow alloc] init];
-        _alertWindow.frame = CGRectMake(0, DDYStatusBarH-DDYDebugToolLabelH, DDYScreenW, DDYDebugToolLabelH);
-        _alertWindow.backgroundColor = [UIColor clearColor];
-        _alertWindow.windowLevel = UIWindowLevelAlert;
-        _alertWindow.rootViewController = [[UIViewController alloc] init];
-        _alertWindow.hidden = NO;
+        _alertWindow = [[UIWindow alloc] initWithFrame:[UIScreen mainScreen].bounds];
+        [_alertWindow setBackgroundColor:[UIColor clearColor]];
+        [_alertWindow setWindowLevel:UIWindowLevelAlert];
+        [_alertWindow addSubview:self.backView];
     }
     return _alertWindow;
 }
 
+#pragma mark 可拖动按钮 getter
+- (UIView *)backView {
+    if (!_backView) {
+        _backView = [[UIView alloc] initWithFrame:CGRectMake(0, startY(), screenW()/3., viewH(NO))];
+        [_backView setBackgroundColor:[UIColor colorWithWhite:0 alpha:0.6]];
+        [_backView addSubview:self.labelFPS];
+        [_backView addSubview:self.labelCPU];
+        [_backView addSubview:self.labelMemory];
+        [_backView addSubview:self.logTextView];
+        [_backView setClipsToBounds:YES];
+        [_backView addGestureRecognizer:[[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(handlePan:)]];
+        [_backView addGestureRecognizer:[[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleTap:)]];
+    }
+    return _backView;
+}
+
+#pragma mark FPS getter
 - (UILabel *)labelFPS {
     if (!_labelFPS) {
-        _labelFPS = [self labelX:0];
+        _labelFPS = [self labelIndex:0];
     }
     return _labelFPS;
 }
 
+#pragma mark CPU getter
 - (UILabel *)labelCPU {
     if (!_labelCPU) {
-        _labelCPU = [self labelX:DDYScreenW/3.];
+        _labelCPU = [self labelIndex:1];
     }
     return _labelCPU;
 }
 
+#pragma mark Memory getter
 - (UILabel *)labelMemory {
     if (!_labelMemory) {
-        _labelMemory = [self labelX:DDYScreenW*2./3.];
+        _labelMemory = [self labelIndex:2];
     }
     return _labelMemory;
 }
 
-- (UILabel *)labelX:(CGFloat)x {
-    UILabel *label = [[UILabel alloc] initWithFrame:CGRectMake(x, 0, DDYScreenW/3., DDYDebugToolLabelH)];
+- (UILabel *)labelIndex:(NSInteger)index {
+    UILabel *label = [[UILabel alloc] initWithFrame:CGRectMake(index * screenW() / 3., 0, screenW()/3., viewH(NO))];
     [label setFont:[UIFont systemFontOfSize:15]];
     [label setTextColor:[UIColor greenColor]];
     [label setTextAlignment:NSTextAlignmentCenter];
-    [label setBackgroundColor:[UIColor colorWithWhite:0 alpha:0.7]];
-    [self.alertWindow addSubview:label];
+    [label setBackgroundColor:[UIColor clearColor]];
     return label;
+}
+
+- (UITextView *)logTextView {
+    if (!_logTextView) {
+        _logTextView = [[UITextView alloc] initWithFrame:CGRectMake(0, viewH(NO), screenW(), viewH(YES)-viewH(NO))];
+        [_logTextView setShowsVerticalScrollIndicator:NO];
+        [_logTextView setShowsHorizontalScrollIndicator:NO];
+        [_logTextView setBounces:NO];
+        [_logTextView setEditable:NO];
+        [_logTextView setFont:[UIFont systemFontOfSize:15.0]];
+    }
+    return _logTextView;
 }
 
 - (DDYFPSMonitor *)monitor {
@@ -106,22 +142,26 @@ static DDYDebugTool *_instance;
 }
 
 #pragma mark - 展示信息
-- (void)showWithType:(DDYDebugToolType)type {
-    
-    __weak __typeof (self)weakSelf = self;
-    [self.monitor setMonitorBlock:^(float fps) {
-        __strong __typeof (weakSelf)strongSelf = weakSelf;
-        if (type & DDYDebugToolTypeFPS) {
+- (void)showInfo:(BOOL)show {
+#if TARGET_IPHONE_SIMULATOR
+    NSLog(@"SIMULATOR DEVICE");
+#else
+    [self.alertWindow setHidden:!show];
+    if (show) {
+        __weak __typeof (self)weakSelf = self;
+        [self.monitor setMonitorBlock:^(float fps) {
+            __strong __typeof (weakSelf)strongSelf = weakSelf;
             [strongSelf handleFPS:fps];
-        }
-        if (type & DDYDebugToolTypeCPU) {
             [strongSelf handleCPU:[DDYSystemInfo ddy_CPUUsage]];
-        }
-        if (type & DDYDebugToolTypeMemory) {
             [strongSelf handleMemory:[DDYSystemInfo ddy_MemoryUsage]];
-        }
-    }];
-    [self.monitor startMonitor];
+            [strongSelf loadLog];
+        }];
+        [self startSaveLog];
+        [self.monitor startMonitor];
+    } else {
+        [self.monitor stopMonitor];
+    }
+#endif
 }
 
 #pragma mark FPS文字处理
@@ -158,6 +198,76 @@ static DDYDebugTool *_instance;
     [attributedStr addAttribute:NSFontAttributeName value:[UIFont systemFontOfSize:14] range:range1];
     [attributedStr addAttribute:NSForegroundColorAttributeName value:[UIColor whiteColor] range:range2];
     self.labelMemory.attributedText = attributedStr;
+}
+
+#pragma mark 重定向NSLog到文件
+- (void)startSaveLog {
+    if ([[NSFileManager defaultManager] fileExistsAtPath:logPath()]) {
+        [[NSFileManager defaultManager] removeItemAtPath:logPath() error:nil];
+    }
+    
+    freopen([logPath() cStringUsingEncoding:NSASCIIStringEncoding], "a+", stdout); // c printf
+    freopen([logPath() cStringUsingEncoding:NSASCIIStringEncoding], "a+", stderr); // oc NSLog
+}
+
+#pragma mark
+- (void)loadLog {
+    NSString *log = [NSString stringWithContentsOfFile:logPath() encoding:NSUTF8StringEncoding error:nil];
+    if (log) {
+        self.logTextView.text = log;
+    }
+}
+
+- (void)handleTap:(UITapGestureRecognizer *)recognizer {
+    if ((self.isExpand = !self.isExpand)) {
+        [UIView animateWithDuration:0.3 animations:^{
+            self.backView.frame = CGRectMake(0, self.backView.frame.origin.y, screenW(), viewH(YES));
+        }];
+    } else {
+        [UIView animateWithDuration:0.3 animations:^{
+            self.backView.frame = CGRectMake(0, self.backView.frame.origin.y, screenW()/3., viewH(NO));
+        }];
+    }
+    [self layoutSubviews];
+}
+
+- (void)handlePan:(UIPanGestureRecognizer *)recognizer {
+    if (recognizer.state == UIGestureRecognizerStateBegan) {
+        NSLog(@"FlyElephant---视图拖动开始");
+    } else if (recognizer.state == UIGestureRecognizerStateChanged) {
+        CGPoint location = [recognizer locationInView:self.alertWindow];
+        CGPoint translation = [recognizer translationInView:self.alertWindow];
+        NSLog(@"当前视图在View的位置:%@----平移位置:%@",NSStringFromCGPoint(location), NSStringFromCGPoint(translation));
+        recognizer.view.center = CGPointMake(recognizer.view.center.x + translation.x,recognizer.view.center.y + translation.y);
+        [recognizer setTranslation:CGPointZero inView:self.alertWindow];
+    } else if (recognizer.state == UIGestureRecognizerStateEnded || recognizer.state == UIGestureRecognizerStateCancelled) {
+        NSLog(@"FlyElephant---视图拖动结束");
+        [self layoutSubviews];
+    }
+}
+
+- (void)layoutSubviews {
+    
+    if (self.backView.frame.origin.x < 0) {
+        CGRect frame = self.backView.frame;
+        frame.origin.x = 0;
+        self.backView.frame = frame;
+    }
+    if ((self.backView.frame.origin.x + self.backView.frame.size.width) > screenW()) {
+        CGRect frame = self.backView.frame;
+        frame.origin.x = screenW() - frame.size.width;
+        self.backView.frame = frame;
+    }
+    if (self.backView.frame.origin.y < startY()) {
+        CGRect frame = self.backView.frame;
+        frame.origin.y = startY();
+        self.backView.frame = frame;
+    }
+    if ((self.backView.frame.origin.y + self.backView.frame.size.height) > endY()) {
+        CGRect frame = self.backView.frame;
+        frame.origin.y = endY() - frame.size.height;
+        self.backView.frame = frame;
+    }
 }
 
 @end
