@@ -1,21 +1,15 @@
 #DDYDebugTool
 
-* 全部显示
+* 显示调试工具视图 
+[DDYDebugTool show:YES];
 
-[[DDYDebugTool sharedManager] showWithType:DDYDebugToolTypeAll];
+* 在屏幕上要显示的内容
+[DDYDebugTool log:@"点击按钮"];
 
-* FPS
-
-[[DDYDebugTool sharedManager] showWithType:DDYDebugToolTypeFPS];
-
-* CPU
-
-[[DDYDebugTool sharedManager] showWithType:DDYDebugToolTypeCPU];
-
-* Memory
-
-[[DDYDebugTool sharedManager] showWithType:DDYDebugToolTypeMemory];
+*捕获系统打印转存到文件
+[DDYDebugTool handleSystemLog];
 
 
 
-![DDYDebugTool.png](https://github.com/starainDou/DDYDemoImage/blob/master/DDYDebugTool.png)
+![DDYDebugTool1.png](https://github.com/starainDou/DDYDemoImage/blob/master/DDYDebugTool1.png) 
+![DDYDebugTool2.png](https://github.com/starainDou/DDYDemoImage/blob/master/DDYDebugTool2.png)

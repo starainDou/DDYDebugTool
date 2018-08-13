@@ -22,12 +22,15 @@
         button;
     });
     [self.view addSubview:takeButton];
-    
+    // 显示调试工具视图
     [DDYDebugTool show:YES];
 }
 
 - (void)handleClick:(UIButton *)sender {
+    // 在屏幕上要显示的内容
     [DDYDebugTool log:@"点击按钮"];
+    // 捕获系统打印转存到文件
+    [DDYDebugTool handleSystemLog];
 }
 
 @end
