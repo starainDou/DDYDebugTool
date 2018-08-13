@@ -23,14 +23,11 @@
     });
     [self.view addSubview:takeButton];
     
-    [[DDYDebugTool sharedManager] showInfo:YES];
+    [DDYDebugTool show:YES];
 }
 
 - (void)handleClick:(UIButton *)sender {
-    
-    for (int i = 0; i < 100; i++) {
-        NSLog(@"%d", i);
-    }
+    [DDYDebugTool log:@"点击按钮"];
 }
 
 @end
