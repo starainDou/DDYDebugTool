@@ -7,7 +7,7 @@ static inline CGFloat screenW() { return [UIScreen mainScreen].bounds.size.width
 static inline CGFloat screenH() { return [UIScreen mainScreen].bounds.size.height; }
 static inline CGFloat startY() { return [DDYSystemInfo deviceType]==IPhone_X ? 74 : 30; }
 static inline CGFloat endY() { return [DDYSystemInfo deviceType]==IPhone_X ? (screenH()-34) : screenH(); }
-static inline CGFloat backViewH(BOOL expand) { return expand ? screenH()/2. : 60; }
+static inline CGFloat backViewH(BOOL expand) { return expand ? (endY()-startY())/2. : 60; }
 static inline CGFloat topViewH() { return 40;}
 static inline NSInteger maxCount() { return 100;}
 
